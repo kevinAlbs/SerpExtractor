@@ -47,12 +47,12 @@ function extract(inputData){
         		pageData += chunk;
         	});
         	res.on("end", function(){
-        		console.log("Page fetched");
         		var domData = $(pageData);
 				var links = domData.find("h3.r a");
 				var printableURL = page.url;
 				if(printableURL.length > 73) printableURL = page.url.substring(0, 70) + "...";
-				console.log("Fetching " + printableURL + " page id: " + page.id);
+				process.stdout.write("Fetching (" + curUrl + "/" + urlsToFetch.length + ") " + page.id + " , " + printableURL + "\033[0K\r");
+				
 				$.each(links, function(index, link){
 					var uncleanURL = link.getAttribute("href");
 					if(uncleanURL.substring(0, 4) != "/url"){
@@ -77,6 +77,7 @@ function extract(inputData){
 					fetchPage(urlsToFetch[curUrl]);
 				}
 				else{
+					console.log("\n");
 					//finished, write CSV
 					var outname = "output";
 					var extra = "";
