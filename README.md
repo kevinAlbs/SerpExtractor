@@ -1,3 +1,6 @@
+##Issues:
+Some SERP pages are not correctly extracted, e.g. SERP pages with /webhp need to be directed to /search. I will implement this later if need be.
+
 ##Dependencies:
 NodeJS: http://nodejs.org/
 
