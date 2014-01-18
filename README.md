@@ -1,5 +1,6 @@
 ##Issues:
-Some SERP pages are not correctly extracted, e.g. SERP pages with /webhp need to be directed to /search. I will implement this later if need be.
+- Some SERP pages are not correctly extracted, e.g. SERP pages with /webhp need to be directed to /search. I will implement this later if need be.
+- The order of results appearing in the output is not necessarily in order of request (since it depends on the response time)
 
 ##Dependencies:
 NodeJS: http://nodejs.org/

@@ -4,42 +4,49 @@ var http = require('http');
 var https = require('https');
 var nurl = require('url');
 
+/* extracts links from Google SERP page */
+
 function help(msg){
 	if(msg) console.log(msg);
-	console.log("Usage: node extractor.js <input file>");
+	console.log("Usage: node extractor.js <input file> <num results>");
 	console.log("<input file> csv file, must use utf-8 encoding");
+	console.log("<num results> the number of results per query wanted, should be given as a multiple of 10");
 }
 
 function readFile(){
-	if(process.argv.length == 3){
+	if(process.argv.length >= 3){
 		if(process.argv[2] == "-h" || process.argv[2] == "--help"){
 			return help();
+		}
+		var numResults = 10;
+		if(process.argv.length > 3){
+			numResults = parseInt(process.argv[3]);
 		}
 		var filename = process.argv[2];		
 		fs.readFile(filename, 'utf8', function(err, data){
 			if(err) return help("ERROR: could not read file: " + filename);
 			console.log("Input file read");
-			extract(data);
+			extract(data, numResults);
 		});
 	}else{
 		return help("ERROR: incorrect arguments");
 	}
 }
 
-function extract(inputData){
+function extract(inputData, numResults){
       console.log("Extracting links");
       var csvOut = "";//output
       var urlsToFetch = [];
       var curUrl = 0;
-      function fetchPage(page){
+      function fetchPage(page, start){
         //fetch that URL
         parsed = nurl.parse(page.url);
         requestProtocol = http;
         if(parsed.protocol == "https:"){
         	requestProtocol = https;
 	    }
-	    
-    	requestProtocol.get(page.url, function(res){
+	    var reqUrl = page.url + "&start=" + start;
+    	requestProtocol.get(reqUrl, function(res){
         	//load into dom
         	pageData = "";
         	res.setEncoding("utf8");
@@ -49,10 +56,9 @@ function extract(inputData){
         	res.on("end", function(){
         		var domData = $(pageData);
 				var links = domData.find("h3.r a");
-				var printableURL = page.url;
+				var printableURL = reqUrl;
 				if(printableURL.length > 73) printableURL = page.url.substring(0, 70) + "...";
 				process.stdout.write("Fetching (" + curUrl + "/" + urlsToFetch.length + ") " + page.id + " , " + printableURL + "\033[0K\r");
-				
 				$.each(links, function(index, link){
 					var uncleanURL = link.getAttribute("href");
 					if(uncleanURL.substring(0, 4) != "/url"){
@@ -69,32 +75,37 @@ function extract(inputData){
 						console.log("Failed for: " + uncleanURL + " page id: " + page.id);
 						return;
 					}
-					csvOut += page.id + "," + index + "," + cleanedURL + "\n";
+					csvOut += page.id + "," + (start + index) + "," + cleanedURL + "\n";
 				});
-				curUrl += 1;
-				if(curUrl < urlsToFetch.length){
-					//fetch the next page
-					fetchPage(urlsToFetch[curUrl]);
+				if(start < numResults - 10){
+					fetchPage(urlsToFetch[curUrl], start + 10);//fetch for next 10
 				}
-				else{
-					console.log("\n");
-					//finished, write CSV
-					var outname = "output";
-					var extra = "";
-					var id = 2;
-					//check if it exists
-					while(fs.existsSync(outname + extra + ".csv")){
-						extra = "_" + id;
-						id++;
+				else{//move onto next url (or if end, stop and output)
+					curUrl += 1;
+					if(curUrl < urlsToFetch.length){
+						//fetch the next page
+						fetchPage(urlsToFetch[curUrl], 0);
 					}
-					var outpath = outname + extra + ".csv";
-					console.log("Writing output to " + outpath);
-					fs.writeFile(outpath, csvOut, function(err){
-						if(err) console.log("Error saving csv to file...");
-						else console.log("Finished, output saved in " + outpath);
-					});
+					else{
+						console.log("\n");
+						//finished, write CSV
+						var outname = "output";
+						var extra = "";
+						var id = 2;
+						//check if it exists
+						while(fs.existsSync(outname + extra + ".csv")){
+							extra = "_" + id;
+							id++;
+						}
+						var outpath = outname + extra + ".csv";
+						console.log("Writing output to " + outpath);
+						fs.writeFile(outpath, csvOut, function(err){
+							if(err) console.log("Error saving csv to file...");
+							else console.log("Finished, output saved in " + outpath);
+						});
+					}
+					domData = null;
 				}
-				domData = null;
         	});
 
         }).on("error", function(e){
@@ -126,7 +137,7 @@ function extract(inputData){
         }
         urlsToFetch.push({'url': url, 'id': id});  
       }
-      fetchPage(urlsToFetch[0]);
+      fetchPage(urlsToFetch[0], 0);
 
 }
 readFile();
